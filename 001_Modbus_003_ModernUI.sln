@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "001_Modbus_003_ModernUI", "001_Modbus_003_ModernUI\001_Modbus_003_ModernUI.csproj", "{A67DECEB-9C19-4E79-8D3A-5CD671063CF9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A67DECEB-9C19-4E79-8D3A-5CD671063CF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A67DECEB-9C19-4E79-8D3A-5CD671063CF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A67DECEB-9C19-4E79-8D3A-5CD671063CF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A67DECEB-9C19-4E79-8D3A-5CD671063CF9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {940BEECB-0186-4713-A391-3033D30256EE}
+	EndGlobalSection
+EndGlobal
