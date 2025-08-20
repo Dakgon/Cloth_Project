@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 
 namespace _001_Modbus_003_ModernUI.Properties
@@ -14,6 +16,7 @@ namespace _001_Modbus_003_ModernUI.Properties
     {
 
         private Camera _camera;                 // Camera instance
+        private PixelDataConverter _converter; // Converter instance to convert the image data to Bitmap format
 
 
         /// <summary>
@@ -26,8 +29,13 @@ namespace _001_Modbus_003_ModernUI.Properties
             try
             {
                 _camera = new Camera();         // Dynamically allocating Camera instance memory
+                _camera.CameraOpened += Configuration.AcquireContinuous; // Setting the acquisition mode to continous
                 _camera.Open();                 // Open the Camera connection
                 _camera.Parameters[PLCamera.PixelFormat].SetValue(PLCamera.PixelFormat.BGR8);
+                _converter = new PixelDataConverter();
+                _camera.StreamGrabber.Start(GrabStrategy.LatestImages, GrabLoop.ProvidedByStreamGrabber);
+
+
                 return "Camera is successfully connected";
             }
             catch (Exception ex)
@@ -95,7 +103,38 @@ namespace _001_Modbus_003_ModernUI.Properties
                 }
             }
         }
-
+        public Bitmap camera_get_frame() 
+        {
+            try
+            {
+                if (!_camera.StreamGrabber.IsGrabbing)
+                {
+                    _camera.StreamGrabber.Start();
+                }
+                using (IGrabResult grabResult = _camera.StreamGrabber.RetrieveResult(2000, TimeoutHandling.ThrowException))
+                {
+                    if (grabResult.GrabSucceeded)
+                    {
+                  
+                        Bitmap bmp = new Bitmap(grabResult.Width, grabResult.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                        BitmapData bmpData = bmp.LockBits(
+                               new Rectangle(0, 0, bmp.Width, bmp.Height),
+                               ImageLockMode.WriteOnly,
+                               bmp.PixelFormat);
+                        _converter.OutputPixelFormat = PixelType.BGR8packed;
+                        _converter.Convert(bmpData.Scan0, bmpData.Stride * bmpData.Height, grabResult);
+                        bmp.UnlockBits(bmpData);
+                        return bmp;
+                      
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting frame:{ex.Message}");
+            }
+            return null;
+        }
         public bool camera_is_connected()
         {
             return _camera.IsOpen;

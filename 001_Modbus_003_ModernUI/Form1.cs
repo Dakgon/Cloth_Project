@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using EasyModbus;
 using MaterialSkin.Controls;
 using _001_Modbus_003_ModernUI.Properties;
 
@@ -20,21 +19,10 @@ namespace _001_Modbus_003_ModernUI
 {
     public partial class Form1 : Form
     {
-        public ModbusClient modbus_client = null;                  // Modbus Client
         DataTable table = new DataTable("table");                   // DataTable for displaying the Predicted Encoder values + Bottles Classes
-
-        public const int sensor_address = 2;                       // Address of Sensor
-        public const int encoder_address = 200;                    // Address of Encoder
-        public const int y_enc_address = 0x0A;                     // Address of Predicted Encoder, Address of Predicted Class of Bottle is y_enc_address +=1
 
         public bool image_is_open = false;
         public bool script_is_open = false;
-
-        private const int N1_OFFSET = 100;
-        private const int N2_OFFSET = 200;
-        private const int N3_OFFSET = 300;
-        private const int N4_OFFSET = 400;
-        public int[] offset_value = new int[] { N1_OFFSET, N2_OFFSET, N3_OFFSET, N4_OFFSET };      // Values of Ejectors offsets from Camera along the Conveyor Belt axis
 
         public Queue<(int, string)> event_queue = new Queue<(int, string)>();            // Queue holds the captured image
         public const int event_queue_size = 10;                                  // Maximum captured images stored in queue
@@ -50,13 +38,12 @@ namespace _001_Modbus_003_ModernUI
         public StreamWriter python_stdin;
         public StreamReader python_stdout;
 
-        private readonly object modbus_lock = new object();
         private readonly object queue_lock = new object();
         private readonly object event_queue_lock = new object();
 
         public static AutoResetEvent event_queue_is_empty = new AutoResetEvent(false);
         public static AutoResetEvent value_queue_is_empty = new AutoResetEvent(false);
-
+      
         public BaslerCamera camera;
         public bool camera_is_open = false;
         public int count = 0;
@@ -65,6 +52,10 @@ namespace _001_Modbus_003_ModernUI
         public form_home form_home_instance;
 
         private Stopwatch stopwatch;
+        public bool condition_sastified = false;
+
+        
+
 
         /// <summary>
         /// Helper Function for deleting a file through multiple attemps.
@@ -155,16 +146,16 @@ namespace _001_Modbus_003_ModernUI
 
             form_home_instance.FormBorderStyle = FormBorderStyle.None;
             this.home_form_load_panel.Controls.Add(form_home_instance);
+            //form_home_instance.Capture_image = true;
             form_home_instance.Show();
-
+            
         }
 
 
         private void home_button_Click(object sender, EventArgs e)
         {
-            navigation_panel.Height = home_button.Height;
-            navigation_panel.Top = home_button.Top;
-            navigation_panel.Left = home_button.Left;
+            
+         
             home_button.BackColor = ColorTranslator.FromHtml("#F8F4EC");
             home_button.ForeColor = ColorTranslator.FromHtml("#121212");
             setting_button.BackColor = ColorTranslator.FromHtml("#402b3a");
@@ -177,9 +168,7 @@ namespace _001_Modbus_003_ModernUI
 
         private void setting_button_Click(object sender, EventArgs e)
         {
-            navigation_panel.Height = setting_button.Height;
-            navigation_panel.Top = setting_button.Top;
-            navigation_panel.Left = setting_button.Left;
+          
             setting_button.BackColor = ColorTranslator.FromHtml("#F8F4EC");
             setting_button.ForeColor = ColorTranslator.FromHtml("#121212");
             home_button.BackColor = ColorTranslator.FromHtml("#402b3a");
@@ -197,7 +186,6 @@ namespace _001_Modbus_003_ModernUI
 
         private void program_load(object sender, EventArgs e)
         {
-            table.Columns.Add("Encoder Feedback", Type.GetType("System.Int32"));
             table.Columns.Add("Predicted Class", Type.GetType("System.String"));
 
             form_home_instance.dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
@@ -231,40 +219,13 @@ namespace _001_Modbus_003_ModernUI
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void com_comboBox_click(object sender, EventArgs e)
-        {
-            form_setting_instance.com_comboBox.Items.Clear();
-            string[] ports = SerialPort.GetPortNames();
-            form_setting_instance.com_comboBox.Items.AddRange(ports);
-            if (form_setting_instance.com_comboBox.Items.Count > 1)
-            {
-                form_setting_instance.com_comboBox.SelectedItem = ports[0];
-            }
-        }
-
         public void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-            bool prev_sensor_response = false;
-            bool curr_sensor_response = false;
             int[] temporary_storage = new int[2];
-            int encoder_feedback = 0;
-            bool condition_sastified = false;
+
+          
             while (!backgroundWorker1.CancellationPending)
             {
-                lock (modbus_lock)
-                {
-
-                    curr_sensor_response = modbus_client.ReadCoils(sensor_address, 1)[0];
-                    if (curr_sensor_response && !prev_sensor_response)
-                    {
-                        temporary_storage = modbus_client.ReadHoldingRegisters(encoder_address, 2);
-                        encoder_feedback = ((temporary_storage[0] & 0xFFFF) | (temporary_storage[1] << 16));
-                        condition_sastified = true;
-                        stopwatch.Restart();
-                    }
-                    prev_sensor_response = curr_sensor_response;
-                }
-
                 if (condition_sastified == true)
                 {
                     condition_sastified = false;
@@ -277,7 +238,6 @@ namespace _001_Modbus_003_ModernUI
                             if (message == "Image is captured successfully")
                             {
                                 string image_file = Path.Combine(image_path, "captured_image" + count.ToString() + ".png");
-                                event_queue.Enqueue((encoder_feedback, image_file));
                                 string temp_path = Path.Combine(image_path, "captured_image_temp.png");
                                 File.Copy(image_file, temp_path, true);                                           // Populates the current reading file, free the file for latter deleting
 
@@ -330,29 +290,6 @@ namespace _001_Modbus_003_ModernUI
                         }
                     }
 
-                    lock (modbus_lock)
-                    {
-                        if (a >= 50000)
-                        {
-                            a -= 50000;
-                        }
-                        try
-                        {
-                            modbus_client.WriteMultipleRegisters(y_enc_address, new int[] { 1, (a & 0xFFFF), (a >> 16) & 0xFFFF, b });
-                            stopwatch.Stop();
-                            this.Invoke((Action)(() =>
-                            {
-                                MessageBox.Show(this, "Time elapsed: " + stopwatch.ElapsedMilliseconds + " ms", "Error", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-                            }));
-                        }
-                        catch (Exception ex)
-                        {
-                            this.Invoke((Action)(() =>
-                            {
-                                MessageBox.Show(this, $"Failed to Transmit Data\nError: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-                            }));
-                        }
-                    }
                 }
             }
         }
@@ -365,8 +302,6 @@ namespace _001_Modbus_003_ModernUI
                 while (true)
                 {
                     string image_file = string.Empty;
-                    int encoder_feedback = 0;
-
                     string feedback_image_path = string.Empty;
                     int bottle_class = -1;
 
@@ -376,42 +311,18 @@ namespace _001_Modbus_003_ModernUI
                         {
                             break;
                         }
-                        (encoder_feedback, image_file) = event_queue.Dequeue();
+                        (_, image_file) = event_queue.Dequeue();
                     }
 
                     (feedback_image_path, bottle_class) = read_from_python(image_file);
-                    if (bottle_class != 10 && bottle_class != -1)
-                    {
-                        encoder_feedback += offset_value[bottle_class];
-                        lock (queue_lock)
-                        {
-                            value.Enqueue((encoder_feedback, bottle_class));
-                            if (value.Count == 1)
-                            {
-                                value_queue_is_empty.Set();
-                            }
-                        }
 
-                        this.Invoke((Action)(() =>
-                        {
-                            form_home_instance.pictureBox.Image = Image.FromFile(feedback_image_path);
-                            DataRow newRow = table.NewRow();
-                            newRow["Encoder Feedback"] = encoder_feedback;
-                            newRow["Predicted Class"] = bottle_class.ToString();
-                            table.Rows.InsertAt(newRow, 0);
-                        }));
-                    }
-                    else
+                    this.Invoke((Action)(() =>
                     {
-                        this.Invoke((Action)(() =>
-                        {
-                            form_home_instance.pictureBox.Image = Image.FromFile(feedback_image_path);
-                            DataRow newRow = table.NewRow();
-                            newRow["Encoder Feedback"] = -1;
-                            newRow["Predicted Class"] = -1;
-                            table.Rows.InsertAt(newRow, 0);
-                        }));
-                    }
+                        form_home_instance.pictureBox.Image = Image.FromFile(feedback_image_path);
+                        DataRow newRow = table.NewRow();
+                        newRow["Predicted Class"] = bottle_class.ToString();
+                        table.Rows.InsertAt(newRow, 0);
+                    }));
 
                     if (!TryDeleteFile(image_file))
                     {
@@ -422,6 +333,49 @@ namespace _001_Modbus_003_ModernUI
                     }
                 }
             }
+        }
+        public void backgroundWorker4_DoWork(object sender, DoWorkEventArgs e)
+        {
+            while(!backgroundWorker4.CancellationPending)
+            {
+                if (camera_is_open)
+                {
+                    var frame = camera.camera_get_frame();
+                    if (frame != null)
+                    {
+                        this.Invoke((Action)(() =>
+                        {
+                            form_home_instance.pictureBox.Image?.Dispose();
+                            form_home_instance.pictureBox.Image = frame;
+                        }));
+                    }
+                }
+                Thread.Sleep(50); // 20 fps 
+            }
+        }
+
+
+
+        private void home_form_load_panel_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void panel1_Paint(object sender, PaintEventArgs e)
+        {
+
+
+
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
         }
     }
 }

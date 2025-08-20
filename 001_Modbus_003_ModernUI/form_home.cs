@@ -26,22 +26,37 @@ namespace _001_Modbus_003_ModernUI
             stop_classifier_button.ForeColor = System.Drawing.SystemColors.ButtonShadow;
         }
 
-        private void stop_button_click(object sender, EventArgs e)
+        private void Capture_button_click(object sender, EventArgs e)
         {
             try
             {
-                mainForm.backgroundWorker1.CancelAsync();
-                mainForm.backgroundWorker2.CancelAsync();
-                mainForm.modbus_client.Disconnect();
-                MessageBox.Show(this, "Modbus Client successfully disconnected", "User Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                this.Enabled = true;
-                stop_button.Enabled = false;
-                stop_button.ForeColor = System.Drawing.SystemColors.ButtonShadow;
+                Capture_image.Enabled = true;
+                //Capture_image.ForeColor = System.Drawing.SystemColors.
+                mainForm.condition_sastified = true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, $"Failed to disconnect Modbus Client\nError: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
             }
+        }
+        private void pictureBox_Click(object sender, EventArgs e)
+        {
+            // Không cần làm gì nếu chưa muốn
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void picture_groupBox_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void data_groupBox_Enter(object sender, EventArgs e)
+        {
+
         }
     }
 }
